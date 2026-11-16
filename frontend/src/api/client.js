@@ -9,3 +9,8 @@ export async function download(id,format){
  if(!r.ok)throw new Error('下载失败，请重试');
  const u=URL.createObjectURL(await r.blob()),a=document.createElement('a');a.href=u;a.download='分析归档-'+id+'.'+format;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);
 }
+export async function exportCredentials(upto){
+ const r=await fetch('/api/credentials/export?upto='+upto,{headers:{Authorization:'Bearer '+session.token}});
+ if(!r.ok){let d=await r.json().catch(()=>({detail:'导出失败，请重试'}));throw new Error(typeof d.detail==='string'?d.detail:'导出失败，请重试');}
+ const u=URL.createObjectURL(await r.blob()),a=document.createElement('a');a.href=u;a.download='凭据导出-截至第'+upto+'号.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);
+}

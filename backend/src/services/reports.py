@@ -2,6 +2,7 @@ import time, os, csv, io, hashlib, json
 from fastapi import HTTPException
 from src.models import Job, Report, Delivery
 from src.config.settings import ARTIFACT_DIR
+from src.services import credentials
 def create(db, data):
     j=db.get(Job,data.job_id)
     if not j or j.status!='completed' or not j.approved:
@@ -31,4 +32,5 @@ def deliver(db, report):
     with open(os.path.join(ARTIFACT_DIR,delivery.filename),'wb') as f:f.write(data)
     with open(os.path.join(ARTIFACT_DIR,delivery.filename+'.json'),'w') as f: json.dump({'job':j.name,'params':j.params,'result':j.result,'checksum':delivery.checksum},f,ensure_ascii=False,allow_nan=False)
     report.next_run=time.time()+report.interval_seconds
+    credentials.issue(db,'delivery.archived','delivery',delivery.id,'worker',credentials.delivery_summary(delivery,report,j),credentials.delivery_snapshot(delivery))
     return delivery

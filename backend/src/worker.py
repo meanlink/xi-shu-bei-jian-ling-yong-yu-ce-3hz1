@@ -7,6 +7,7 @@ from src.config.settings import REDIS_URL
 from src.models import Job, Dataset, Report
 from src.services.business import analyze
 from src.services.reports import deliver
+from src.services import credentials
 from src.services.audit import record
 logging.basicConfig(level=logging.INFO)
 def execute(job_id):
@@ -20,10 +21,14 @@ def execute(job_id):
             json.dumps(result,allow_nan=False)
             j.result=result;j.status='completed';j.finished_at=time.time()
             record(db,'worker','job.completed',{'id':j.id})
+            credentials.issue(db,'job.completed','job',j.id,'worker',credentials.job_completed_summary(j),credentials.job_completed_snapshot(j))
         except Exception as e:
             logging.exception('Analysis failed')
-            j.status='failed';j.error=str(e)[:990];j.finished_at=time.time()
-            record(db,'worker','job.failed',{'id':j.id,'error':j.error})
+            db.rollback() # 完成态与凭据一起撤回，失败单独记录
+            j=db.get(Job,job_id)
+            if j:
+                j.status='failed';j.error=str(e)[:990];j.finished_at=time.time()
+                record(db,'worker','job.failed',{'id':j.id,'error':j.error})
         db.commit()
 def tick():
     with Session() as db:
